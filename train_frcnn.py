@@ -21,7 +21,8 @@ sys.setrecursionlimit(40000)
 
 parser = OptionParser()
 
-parser.add_option("-p", "--path", dest="train_path", help="Path to training data.",default='D:/Pilot_Study/MS01-20200210-135709_adapted.txt')
+#parser.add_option("-p", "--path", dest="train_path", help="Path to training data.",default='D:/Pilot_Study/MS01-20200210-135709_adapted.txt')
+parser.add_option("-v","--videos", dest="train_videos", help="Path to text file containing video names to be used for training", default = 'D:/Pilot_Study/train_videos.txt')
 parser.add_option("-o", "--parser", dest="parser", help="Parser to use. One of simple or pascal_voc",
 				default="simple")
 parser.add_option("-n", "--num_rois", type="int", dest="num_rois", help="Number of RoIs to process at once.", default=32)
@@ -33,15 +34,15 @@ parser.add_option("--rot", "--rot_90", dest="rot_90", help="Augment with 90 degr
 parser.add_option("--num_epochs", type="int", dest="num_epochs", help="Number of epochs.", default=2000)
 parser.add_option("--config_filename", dest="config_filename", help=
 				"Location to store all the metadata related to the training (to be used when testing).",
-				default="MS01-20200210-135709_config.pickle")
-parser.add_option("--output_weight_path", dest="output_weight_path", help="Output path for weights.", default='./MS01-20200210-135709_model_frcnn.hdf5')
+				default="config.pickle")
+parser.add_option("--output_weight_path", dest="output_weight_path", help="Output path for weights.", default='./model_frcnn.hdf5')
 parser.add_option("--input_weight_path", dest="input_weight_path", help="Input path for weights. If not specified, will try to load default weights provided by keras.")
 
 (options, args) = parser.parse_args()
-
+'''
 if not options.train_path:   # if filename is not given
 	parser.error('Error: path to training data must be specified. Pass --path to command line')
-
+'''
 if options.parser == 'pascal_voc':
 	from keras_frcnn.pascal_voc_parser import get_data
 elif options.parser == 'simple':
@@ -77,7 +78,7 @@ else:
 	# set the path to weights based on backend and model
 	C.base_net_weights = nn.get_weight_path()
 
-all_imgs, classes_count, class_mapping = get_data(options.train_path)
+all_imgs, classes_count, class_mapping = get_data(options.train_videos)
 
 if 'bg' not in classes_count:
 	classes_count['bg'] = 0

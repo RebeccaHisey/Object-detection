@@ -17,19 +17,20 @@ sys.setrecursionlimit(40000)
 
 parser = OptionParser()
 
-parser.add_option("-p", "--path", dest="test_path", help="Path to test data.",default='D:/Pilot_Study/Segmented_videos')
+parser.add_option("-p", "--path", dest="test_path", help="Path to test data.",default='D:/Pilot_Study/train_videos.txt')
 parser.add_option("-n", "--num_rois", type="int", dest="num_rois",
 				help="Number of ROIs per iteration. Higher means more memory use.", default=32)
 parser.add_option("--config_filename", dest="config_filename", help=
 				"Location to read the metadata related to the training (generated when training).",
-				default="MS01-20200210-135709_config.pickle")
+				default="D:/Object-detection/MS01-20200210-135109_config.pickle")
+parser.add_option("-m","--model_path",dest="model_path",default="D:/Object-detection/MS01-20200210-135109_model_frcnn.hdf5")
 parser.add_option("--network", dest="network", help="Base network to use. Supports vgg or resnet50.", default='resnet50')
 
 (options, args) = parser.parse_args()
-
+'''
 if not options.test_path:   # if filename is not given
 	parser.error('Error: path to test data must be specified. Pass --path to command line')
-
+'''
 
 config_output_filename = options.config_filename
 
@@ -47,7 +48,12 @@ C.use_vertical_flips = False
 C.rot_90 = False
 
 datafolder = options.test_path
-
+print(datafolder)
+testVideos = []
+with open(datafolder,'r') as testvids:
+	for line in testvids:
+		print(line)
+		testVideos.append(line.strip())
 
 def format_img_size(img, C):
 	""" formats the image size based on config """
@@ -130,9 +136,9 @@ model_classifier_only = Model([feature_map_input, roi_input], classifier)
 
 model_classifier = Model([feature_map_input, roi_input], classifier)
 
-print('Loading weights from {}'.format(C.model_path))
-model_rpn.load_weights(C.model_path, by_name=True)
-model_classifier.load_weights(C.model_path, by_name=True)
+print('Loading weights from {}'.format(options.model_path))
+model_rpn.load_weights(options.model_path, by_name=True)
+model_classifier.load_weights(options.model_path, by_name=True)
 
 model_rpn.compile(optimizer='sgd', loss='mse')
 model_classifier.compile(optimizer='sgd', loss='mse')
@@ -144,8 +150,8 @@ classes = {}
 bbox_threshold = 0.8
 
 visualise = True
-boundingBoxData = pandas.DataFrame(columns=['filePath','label','confidence','xmin','ymin','xmax','ymax'])
-videos = os.listdir(datafolder)
+
+'''videos = os.listdir(datafolder)
 print(videos)
 #train_videos=['MS01-20200210-132740','MS01-20200210-133541','MS01-20200210-134522','MS01-20200210-135109','MS01-20200210-135709']
 test_video = C.model_path
@@ -154,16 +160,32 @@ test_video = test_video.replace('_model_frcnn.hdf5','')
 test_video = test_video.replace('./','')
 videos = [vid for vid in videos if 'MS01' in vid and test_video in vid]
 print(videos)
-for vid in videos:
-	print (vid)
-	img_path = os.path.join(datafolder,vid)
-	img_path = os.path.join(img_path,'training_photos/task_labels/wholevideo')
-	for idx, img_name in enumerate(sorted(os.listdir(img_path))):
+for vid in videos:'''
+	#print (vid)
+print(testVideos)
+for vid in testVideos:
+	print(vid)
+	boundingBoxData = pandas.DataFrame(columns=['filePath', 'label', 'confidence', 'xmin', 'ymin', 'xmax', 'ymax'])
+	all_imgs = []
+	classes = {}
+	videoPath = os.path.join(os.path.dirname(datafolder),vid)
+	img_paths = []
+	with open(videoPath,'r') as vp:
+		for line in vp:
+			line_split = line.strip().split(',')
+			(filename, x1, y1, x2, y2, class_name) = line_split
+			img_paths.append(filename)
+	for filepath in img_paths:
+		'''for idx, img_name in enumerate(sorted(os.listdir(img_path))):
 		if not img_name.lower().endswith(('.bmp', '.jpeg', '.jpg', '.png', '.tif', '.tiff')):
 			continue
-		print(img_name)
+		print(img_name)'''
 		st = time.time()
-		filepath = os.path.join(img_path,img_name)
+		#filepath = os.path.join(img_path,img_name)
+		img_name = os.path.basename(filepath)
+		videoID = os.path.basename(vid.replace('_adapted.txt',''))
+		print(img_name)
+		print(videoID)
 
 		img = cv2.imread(filepath)
 
@@ -240,7 +262,7 @@ for vid in videos:
 					(x1, y1, x2, y2) = new_boxes[jk,:]
 
 					(real_x1, real_y1, real_x2, real_y2) = get_real_coordinates(ratio, x1, y1, x2, y2)
-			boundingBoxData = boundingBoxData.append({'filePath':img_path+'/'+ img_name,'label':key,'confidence':curr_bestProb,'xmin':real_x1,'ymin':real_y1,'xmax':real_x2,'ymax':real_y2},ignore_index=True)
+			boundingBoxData = boundingBoxData.append({'filePath':filepath,'label':key,'confidence':curr_bestProb,'xmin':real_x1,'ymin':real_y1,'xmax':real_x2,'ymax':real_y2},ignore_index=True)
 			cv2.rectangle(img,(real_x1, real_y1), (real_x2, real_y2), (int(class_to_color[key][0]), int(class_to_color[key][1]), int(class_to_color[key][2])),2)
 
 			textLabel = '{}: {}'.format(key,int(100*curr_bestProb))
@@ -257,8 +279,8 @@ for vid in videos:
 		print(all_dets)
 		if all_dets == []:
 			boundingBoxData = boundingBoxData.append(
-				{'filePath': img_path + '/' + img_name, 'label': 'none', 'confidence': 0, 'xmin': 'inf','ymin': 'inf', 'xmax': 'inf', 'ymax': 'inf'}, ignore_index=True)
+				{'filePath': filepath, 'label': 'none', 'confidence': 0, 'xmin': 'inf','ymin': 'inf', 'xmax': 'inf', 'ymax': 'inf'}, ignore_index=True)
 		#cv2.imshow('img', img)
 		#cv2.waitKey(0)
-		cv2.imwrite('D:/Pilot_Study/results_images/{}/{}'.format(vid,img_name),img)
-	boundingBoxData.to_csv('D:/Pilot_Study/results_images/'+vid+'_testDataBoundingBoxes.csv')
+		cv2.imwrite('D:/Pilot_Study/results_images/{}/{}'.format(videoID,img_name),img)
+	boundingBoxData.to_csv('D:/Pilot_Study/results_images/'+videoID+'_testDataBoundingBoxes.csv')
