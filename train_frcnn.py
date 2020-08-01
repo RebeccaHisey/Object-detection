@@ -161,8 +161,8 @@ model_rpn.compile(optimizer=optimizer, loss=[losses.rpn_loss_cls(num_anchors), l
 model_classifier.compile(optimizer=optimizer_classifier, loss=[losses.class_loss_cls, losses.class_loss_regr(len(classes_count)-1)], metrics={'dense_class_{}'.format(len(classes_count)): 'accuracy'})
 model_all.compile(optimizer='sgd', loss='mae')
 
-epoch_length = 1000
-val_epoch_length = 200
+epoch_length = len(all_imgs)
+val_epoch_length = len(all_val_imgs)
 num_epochs = int(options.num_epochs)
 iter_num = 0
 
@@ -184,7 +184,7 @@ vis = True
 val_loss_decreasing = True
 val_acc_increasing = True
 epoch_num = 0
-while (val_loss_decreasing and val_acc_increasing and epoch_num < num_epochs) or (epoch_num < 20):		
+while (val_loss_decreasing and val_acc_increasing and epoch_num < num_epochs): # or (epoch_num < 20):		
 #for epoch_num in range(num_epochs):
 	epoch_num +=1
 	progbar = utils.Progbar(epoch_length)
