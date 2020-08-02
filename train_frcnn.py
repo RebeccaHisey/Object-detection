@@ -184,7 +184,8 @@ vis = True
 val_loss_decreasing = True
 val_acc_increasing = True
 epoch_num = 0
-while (val_loss_decreasing and val_acc_increasing and epoch_num < num_epochs): # or (epoch_num < 20):		
+
+while (val_loss_decreasing and val_acc_increasing and epoch_num < num_epochs) or (epoch_num < 20):
 #for epoch_num in range(num_epochs):
 	epoch_num +=1
 	progbar = utils.Progbar(epoch_length)
