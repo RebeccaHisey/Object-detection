@@ -22,7 +22,8 @@ sys.setrecursionlimit(40000)
 parser = OptionParser()
 
 #parser.add_option("-p", "--path", dest="train_path", help="Path to training data.",default='D:/Pilot_Study/MS01-20200210-135709_adapted.txt')
-parser.add_option("-v","--videos", dest="train_videos", help="Path to text file containing video names to be used for training", default = 'D:/Pilot_Study/train_videos.txt')
+parser.add_option("-t","--train_videos", dest="train_videos", help="Path to text file containing video names to be used for training", default = 'annotation_files/train.txt')
+parser.add_option("--val", '--validation_videos', dest="validation_videos", default = 'annotation_files/vaildation.txt')
 parser.add_option("-o", "--parser", dest="parser", help="Parser to use. One of simple or pascal_voc",
 				default="simple")
 parser.add_option("-n", "--num_rois", type="int", dest="num_rois", help="Number of RoIs to process at once.", default=32)
@@ -78,19 +79,30 @@ else:
 	# set the path to weights based on backend and model
 	C.base_net_weights = nn.get_weight_path()
 
-all_imgs, classes_count, class_mapping = get_data(options.train_videos)
+all_imgs, classes_count, class_mapping = get_data(options.train_videos, options.validation_videos, True)
+all_val_imgs, val_classes_count, val_class_mapping = get_data(options.train_videos, options.validation_videos, False)
 
 if 'bg' not in classes_count:
 	classes_count['bg'] = 0
 	class_mapping['bg'] = len(class_mapping)
 
+if 'bg' not in val_classes_count:
+	val_classes_count['bg'] = 0
+	val_class_mapping['bg'] = len(val_class_mapping)
+
 C.class_mapping = class_mapping
+C.val_class_mapping = val_class_mapping
 
 inv_map = {v: k for k, v in class_mapping.items()}
+val_inv_map = {v: k for k, v in val_class_mapping.items()}
 
 print('Training images per class:')
 pprint.pprint(classes_count)
 print('Num classes (including bg) = {}'.format(len(classes_count)))
+
+print('validation images per class:')
+pprint.pprint(val_classes_count)
+print('Num val classes (including bg) = {}'.format(len(val_classes_count)))
 
 config_output_filename = options.config_filename
 
@@ -99,11 +111,13 @@ with open(config_output_filename, 'wb') as config_f:
 	print('Config has been written to {}, and can be loaded when testing to ensure correct results'.format(config_output_filename))
 
 random.shuffle(all_imgs)
+random.shuffle(all_val_imgs)
 
 num_imgs = len(all_imgs)
+num_val_imgs = len(all_val_imgs)
 
-train_imgs = [s for s in all_imgs if s['imageset'] == 'trainval']
-val_imgs = [s for s in all_imgs if s['imageset'] == 'test']
+train_imgs = [s for s in all_imgs]
+val_imgs = [s for s in all_val_imgs]
 
 print('Num train samples {}'.format(len(train_imgs)))
 print('Num val samples {}'.format(len(val_imgs)))
@@ -147,8 +161,8 @@ model_rpn.compile(optimizer=optimizer, loss=[losses.rpn_loss_cls(num_anchors), l
 model_classifier.compile(optimizer=optimizer_classifier, loss=[losses.class_loss_cls, losses.class_loss_regr(len(classes_count)-1)], metrics={'dense_class_{}'.format(len(classes_count)): 'accuracy'})
 model_all.compile(optimizer='sgd', loss='mae')
 
-epoch_length = 1000
-val_epoch_length = 200
+epoch_length = len(all_imgs)
+val_epoch_length = len(all_val_imgs)
 num_epochs = int(options.num_epochs)
 iter_num = 0
 
@@ -170,7 +184,8 @@ vis = True
 val_loss_decreasing = True
 val_acc_increasing = True
 epoch_num = 0
-while val_loss_decreasing and val_acc_increasing and epoch_num < num_epochs:
+
+while (val_loss_decreasing and val_acc_increasing and epoch_num < num_epochs) or (epoch_num < 20):
 #for epoch_num in range(num_epochs):
 	epoch_num +=1
 	progbar = utils.Progbar(epoch_length)
