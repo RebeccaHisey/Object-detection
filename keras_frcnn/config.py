@@ -15,10 +15,13 @@ class Config:
 		self.rot_90 = False
 
 		# anchor box scales
-		self.anchor_box_scales = [128, 256, 512]
+		#self.anchor_box_scales = [128, 256, 512]
+		self.anchor_box_scales = [182,227,256,349,98]
 
 		# anchor box ratios
-		self.anchor_box_ratios = [[1, 1], [1./math.sqrt(2), 2./math.sqrt(2)], [2./math.sqrt(2), 1./math.sqrt(2)]]
+		#self.anchor_box_ratios = [[1, 1], [1./math.sqrt(2), 2./math.sqrt(2)], [2./math.sqrt(2), 1./math.sqrt(2)]]
+		#self.anchor_box_ratios = [[269.33, 123.31],[103.71,495.71],[487.30, 135.72],[363.64,335.96],[135.69,70.95]]
+		self.anchor_box_ratios = [[1,1],[2,1],[1,5],[7,2]]
 
 		# size to resize the smallest side of the image
 		self.im_size = 600
