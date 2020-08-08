@@ -9,19 +9,50 @@ import pandas
 import SimpleITK
 
 def readCSV(videoName):
-    trueLabels = pandas.read_csv('D:/Pilot_Study/' + videoName + '_adapted.csv')
+    trueLabels = pandas.read_csv('D:/Pilot_Study/Olivia_Annotations/' + videoName + '.csv')
     trueLabels.head()
     predictedLabels = pandas.read_csv('D:/Pilot_Study/results_images/'+videoName+'_testDataBoundingBoxes.csv')
     predictedLabels.head()
     return(trueLabels,predictedLabels)
 
+def convertNametoIndex(name):
+    if name == 'anesthetic':
+        index = 0
+    elif name == 'catheter':
+        index= 1
+    elif name == 'dilator':
+        index  = 2
+    elif name == 'guidewire':
+        index  = 3
+    elif name == 'guidewire_casing':
+        index  = 4
+    elif name == 'none':
+        index  = 5
+    elif name == 'scalpel':
+        index  = 6
+    elif name == 'syringe':
+        index  = 7
+    elif name == 'ultrasound':
+        index  = 8
+    return index
+
 def getAccuracy(trueLabels,predictedLabels):
-    totalFrameCount = len(trueLabels)
     truePositives = 0
     trueNegatives = 0
     falsePositives = 0
     falseNegatives = 0
-    for i in range(len(trueLabels)):
+    tLabels =[]
+    pLabels =[]
+    for i in range(len(predictedLabels)):
+        imageAllBBoxes = trueLabels.loc[trueLabels['filePath'] == predictedLabels['filePath'][i]]
+        Tlabel = 'none'
+        rowIndexes = imageAllBBoxes.index
+        for j in range(rowIndexes[0],rowIndexes[-1]+1):
+            cn = imageAllBBoxes['class_name'][j]
+            pl = predictedLabels['label'][i]
+            if imageAllBBoxes['class_name'][j] == predictedLabels['label'][i]:
+                Tlabel = imageAllBBoxes['class_name'][j]
+        '''
         if trueLabels['class_name'][i] == 'ultrasound' and predictedLabels['label'][i] == 'ultrasound':
             truePositives +=1
         elif trueLabels['class_name'][i] == 'none' and predictedLabels['label'][i] == 'none':
@@ -30,9 +61,23 @@ def getAccuracy(trueLabels,predictedLabels):
             falseNegatives += 1
         elif trueLabels['class_name'][i] == 'none' and predictedLabels['label'][i] == 'ultrasound':
             falsePositives += 1
-    accuracy = (truePositives + trueNegatives) / totalFrameCount
-    print('Accuracy: {}\nTrue positives: {}\nTrue negatives: {}\nFalse positives: {}\nFalse negatives: {}\nTotal frame count: {}'.format(accuracy,truePositives,trueNegatives,falsePositives,falseNegatives,totalFrameCount))
-    return (accuracy,truePositives,trueNegatives,falsePositives,falseNegatives,totalFrameCount)
+        '''
+        Tlabel = convertNametoIndex(Tlabel)
+        Plabel = convertNametoIndex(predictedLabels['label'][i])
+        tLabels.append(Tlabel)
+        pLabels.append(Plabel)
+    tLabels = numpy.array(tLabels)
+    pLabels = numpy.array(pLabels)
+    confmat = sklearn.metrics.confusion_matrix(tLabels,pLabels)
+    print(confmat)
+    diagonalEntries = []
+    for i in range(0,confmat.shape[0]):
+        diagonalEntries.append(confmat[i][i])
+    diagonalEntries = numpy.array(diagonalEntries)
+    accuracy = numpy.sum(diagonalEntries) / numpy.sum(confmat)
+    totalFrameCount = len(pLabels)
+    #print('Accuracy: {}\nTrue positives: {}\nTrue negatives: {}\nFalse positives: {}\nFalse negatives: {}\nTotal frame count: {}'.format(accuracy,truePositives,trueNegatives,falsePositives,falseNegatives,totalFrameCount))
+    return (accuracy,totalFrameCount)
 
 def getCenterPoints(trueLabels,predictedLabels):
     centerPoints = pandas.DataFrame(columns=['filePath','x_center_true','y_center_true','x_center_pred','y_center_pred','distance'])
@@ -108,16 +153,19 @@ def getPathLengthEstimate(predictedLabels,trueLabels,videoPath):
     return (totalPathLength,totalTruePath)
 
 def main():
-    videos = ['MS01-20200210-133541']
+    videos = ['MS01_complete']
     #videos = ['MS01-20200210-132740','MS01-20200210-133541','MS01-20200210-134522','MS01-20200210-135109','MS01-20200210-135709']
     #videoLengths = [583.88,315.05,284.73,234.53,219.39]
     videoLengths = [315.05]
     dataFolder = 'D:/Pilot_Study/Segmented_videos/'
     imageFolder = '/training_photos/task_labels/wholevideo'
-    resultsData = pandas.DataFrame(columns = ['video_name','accuracy','true_positives','true_negatives','false_positives','false_negatives','total_frame_count','mean_euclidean_distance','std_deviation','scan_time','path_length','true_path_length'])
+    resultsData = pandas.DataFrame(columns = ['video_name','accuracy','total_frame_count','mean_euclidean_distance','std_deviation','scan_time','path_length','true_path_length'])
     for i in range(len(videos)):
         print(videos[i])
         trueLabels,predictedLabels = readCSV(videos[i])
+        (accuracy,totalFrameCount) = getAccuracy(trueLabels,predictedLabels)
+        print (accuracy)
+        '''
         (accuracy, truePositives, trueNegatives, falsePositives, falseNegatives, totalFrameCount) = getAccuracy(trueLabels,predictedLabels)
         (meanDistance,stdDev) = getMeanDistance(trueLabels,predictedLabels)
         scanTime = getScanTimeEstimate(truePositives,falsePositives,totalFrameCount,videoLengths[i])
@@ -135,7 +183,8 @@ def main():
                                          'scan_time':scanTime,
                                          'path_length':pathLength,
                                          'true_path_length':truePathLength},ignore_index=True)
-    resultsData.to_csv('D:/Pilot_Study/results_images/performanceResults.csv')
+        '''
+    #resultsData.to_csv('D:/Pilot_Study/results_images/performanceResults_balanced.csv')
 
 main()
 
