@@ -2,16 +2,13 @@ import cv2
 import os
 import numpy as np
 
-def get_data(train_path, val_path, train):
+def get_data(train_path, train):
 	found_bg = False
 	all_imgs = {}
-	all_val_imgs = {}
 
 	classes_count = {}
-	val_classes_count = {}
 
 	class_mapping = {}
-	val_class_mapping = {}
 
 	visualise = True
 	videoIDs = []
@@ -72,61 +69,6 @@ def get_data(train_path, val_path, train):
 				class_mapping[key_to_switch] = val_to_switch
 			
 		return all_data, classes_count, class_mapping
-
-	else:
-		#repeat for validation
-		with open(val_path, 'r') as videoFile:
-			for line in videoFile:
-				videoIDs.append(line.strip())
-		for video in videoIDs:
-			videoPath = os.path.join(os.path.dirname(val_path),video)
-			print(videoPath)
-			with open(videoPath,'r') as f:
-
-				print('Parsing annotation file: ' + video)
-
-				for line in f:
-					line_split = line.strip().split(',')
-					(filename,x1,y1,x2,y2,class_name) = line_split
-					print(filename)
-
-					if class_name not in val_classes_count:
-						val_classes_count[class_name] = 1
-					else:
-						val_classes_count[class_name] += 1
-
-					if class_name not in val_class_mapping:
-						if class_name == 'bg' and found_bg == False:
-							print('Found class name with special name bg. Will be treated as a background region (this is usually for hard negative mining).')
-							found_bg = True
-						val_class_mapping[class_name] = len(val_class_mapping)
-
-					if filename not in all_val_imgs:
-						all_val_imgs[filename] = {}
-
-						img = cv2.imread(filename)
-						(rows,cols) = img.shape[:2]
-						all_val_imgs[filename]['filepath'] = filename
-						all_val_imgs[filename]['width'] = cols
-						all_val_imgs[filename]['height'] = rows
-						all_val_imgs[filename]['bboxes'] = []
-						all_val_imgs[filename]['imageset'] = 'val'
-
-					all_val_imgs[filename]['bboxes'].append({'class': class_name, 'x1': int(x1), 'x2': int(x2), 'y1': int(y1), 'y2': int(y2)})
-
-		all_val_data = []
-		for key in all_val_imgs:
-			all_val_data.append(all_val_imgs[key])
-		print (len(all_val_data))
-		# make sure the bg class is last in the list
-		if found_bg:
-			if val_class_mapping['bg'] != len(val_class_mapping) - 1:
-				val_key_to_switch = [key for key in val_class_mapping.keys() if val_class_mapping[key] == len(val_class_mapping)-1][0]
-				val_to_switch = class_mapping['bg']
-				val_class_mapping['bg'] = len(val_class_mapping) - 1
-				val_class_mapping[val_key_to_switch] = val_to_switch
-			
-		return all_val_data, val_classes_count, val_class_mapping
 
 
 
