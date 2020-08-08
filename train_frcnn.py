@@ -16,14 +16,15 @@ from keras_frcnn import config, data_generators
 from keras_frcnn import losses as losses
 import keras_frcnn.roi_helpers as roi_helpers
 from tensorflow.keras import utils
+from matplotlib import pyplot as plt
 
 sys.setrecursionlimit(40000)
 
 parser = OptionParser()
 
 #parser.add_option("-p", "--path", dest="train_path", help="Path to training data.",default='D:/Pilot_Study/MS01-20200210-135709_adapted.txt')
-parser.add_option("-t","--train_videos", dest="train_videos", help="Path to text file containing video names to be used for training", default = 'annotation_files/train.txt')
-parser.add_option("--val", '--validation_videos', dest="validation_videos", default = 'annotation_files/vaildation.txt')
+parser.add_option("-t","--train_videos", dest="train_videos", help="Path to text file containing video names to be used for training", default = 'D:/Pilot_Study/Olivia_Annotations/train_tools.txt')
+parser.add_option("--val", '--validation_videos', dest="validation_videos", default = 'D:/Pilot_Study/Olivia_Annotations/val_videos.txt')
 parser.add_option("-o", "--parser", dest="parser", help="Parser to use. One of simple or pascal_voc",
 				default="simple")
 parser.add_option("-n", "--num_rois", type="int", dest="num_rois", help="Number of RoIs to process at once.", default=32)
@@ -32,12 +33,12 @@ parser.add_option("--hf", dest="horizontal_flips", help="Augment with horizontal
 parser.add_option("--vf", dest="vertical_flips", help="Augment with vertical flips in training. (Default=false).", action="store_true", default=False)
 parser.add_option("--rot", "--rot_90", dest="rot_90", help="Augment with 90 degree rotations in training. (Default=false).",
 				  action="store_true", default=False)
-parser.add_option("--num_epochs", type="int", dest="num_epochs", help="Number of epochs.", default=2000)
+parser.add_option("--num_epochs", type="int", dest="num_epochs", help="Number of epochs.", default=30)
 parser.add_option("--config_filename", dest="config_filename", help=
 				"Location to store all the metadata related to the training (to be used when testing).",
-				default="config.pickle")
-parser.add_option("--output_weight_path", dest="output_weight_path", help="Output path for weights.", default='./model_frcnn.hdf5')
-parser.add_option("--input_weight_path", dest="input_weight_path", help="Input path for weights. If not specified, will try to load default weights provided by keras.")
+				default="D:/Pilot_Study/Olivia_Annotations/MS01_config.pickle")
+parser.add_option("--output_weight_path", dest="output_weight_path", help="Output path for weights.", default='D:/Pilot_Study/Olivia_Annotations/MS01_model_frcnn.hdf5')
+parser.add_option("--input_weight_path", dest="input_weight_path", help="Input path for weights. If not specified, will try to load default weights provided by keras.",default = './resnet50_weights_tf_dim_ordering_tf_kernels_notop.h5')
 
 (options, args) = parser.parse_args()
 '''
@@ -79,8 +80,8 @@ else:
 	# set the path to weights based on backend and model
 	C.base_net_weights = nn.get_weight_path()
 
-all_imgs, classes_count, class_mapping = get_data(options.train_videos, options.validation_videos, True)
-all_val_imgs, val_classes_count, val_class_mapping = get_data(options.train_videos, options.validation_videos, False)
+all_imgs, classes_count, class_mapping = get_data(options.train_videos, True)
+all_val_imgs, val_classes_count, val_class_mapping = get_data(options.validation_videos, True)
 
 if 'bg' not in classes_count:
 	classes_count['bg'] = 0
@@ -162,14 +163,16 @@ model_classifier.compile(optimizer=optimizer_classifier, loss=[losses.class_loss
 model_all.compile(optimizer='sgd', loss='mae')
 
 epoch_length = len(all_imgs)
+#epoch_length  = 200
 val_epoch_length = len(all_val_imgs)
+#val_epoch_length = 100
 num_epochs = int(options.num_epochs)
 iter_num = 0
 
 losses = np.zeros((epoch_length, 5))
 rpn_accuracy_rpn_monitor = []
 rpn_accuracy_for_epoch = []
-val_losses = np.zeros((epoch_length, 5))
+val_losses = np.zeros((val_epoch_length, 5))
 rpn_accuracy_rpn_monitor_val = []
 rpn_accuracy_for_epoch_val = []
 start_time = time.time()
@@ -184,9 +187,19 @@ vis = True
 val_loss_decreasing = True
 val_acc_increasing = True
 epoch_num = 0
+all_train_rpn_cls_loss = []
+all_train_rpn_reg_loss = []
+all_train_cls_cls_loss = []
+all_train_cls_reg_loss = []
+all_train_total_loss = []
+all_val_rpn_cls_loss = []
+all_val_rpn_reg_loss = []
+all_val_cls_cls_loss = []
+all_val_cls_reg_loss = []
+all_val_total_loss = []
 
-while (val_loss_decreasing and val_acc_increasing and epoch_num < num_epochs) or (epoch_num < 20):
-#for epoch_num in range(num_epochs):
+#while (val_loss_decreasing and val_acc_increasing and epoch_num < num_epochs) or (epoch_num < 20):
+for epoch_num in range(num_epochs):
 	epoch_num +=1
 	progbar = utils.Progbar(epoch_length)
 	print('Epoch {}/{}'.format(epoch_num, num_epochs))
@@ -273,6 +286,11 @@ while (val_loss_decreasing and val_acc_increasing and epoch_num < num_epochs) or
 				loss_class_cls = np.mean(losses[:, 2])
 				loss_class_regr = np.mean(losses[:, 3])
 				class_acc = np.mean(losses[:, 4])
+				all_train_rpn_cls_loss.append(loss_rpn_cls)
+				all_train_rpn_reg_loss.append(loss_rpn_regr)
+				all_train_cls_cls_loss.append(loss_class_cls)
+				all_train_cls_reg_loss.append(loss_class_regr)
+				all_train_total_loss.append(loss_rpn_cls+loss_rpn_regr+loss_class_cls+loss_class_regr)
 
 				mean_overlapping_bboxes = float(sum(rpn_accuracy_for_epoch)) / len(rpn_accuracy_for_epoch)
 				rpn_accuracy_for_epoch = []
@@ -357,7 +375,11 @@ while (val_loss_decreasing and val_acc_increasing and epoch_num < num_epochs) or
 				loss_class_cls = np.mean(val_losses[:, 2])
 				loss_class_regr = np.mean(val_losses[:, 3])
 				class_acc = np.mean(val_losses[:, 4])
-
+				all_val_rpn_cls_loss.append(loss_rpn_cls)
+				all_val_rpn_reg_loss.append(loss_rpn_regr)
+				all_val_cls_cls_loss.append(loss_class_cls)
+				all_val_cls_reg_loss.append(loss_class_regr)
+				all_val_total_loss.append(loss_rpn_cls + loss_rpn_regr + loss_class_cls + loss_class_regr)
 				mean_overlapping_bboxes = float(sum(rpn_accuracy_for_epoch_val)) / len(rpn_accuracy_for_epoch_val)
 				rpn_accuracy_for_epoch_val = []
 
@@ -396,3 +418,20 @@ while (val_loss_decreasing and val_acc_increasing and epoch_num < num_epochs) or
 			continue
 
 print('Training complete, exiting.')
+plt.plot([i for i in range(1,epoch_num + 1)], all_train_rpn_cls_loss, 'b', label='Training RPN Class Loss')
+plt.plot([i for i in range(1,epoch_num+1)], all_val_rpn_cls_loss, '--b', label='Validation RPN Class Loss')
+plt.plot([i for i in range(1,epoch_num+1)], all_train_rpn_reg_loss, 'r', label='Training RPN Reg Loss')
+plt.plot([i for i in range(1,epoch_num+1)], all_val_rpn_reg_loss, '--r', label='Validation RPN Reg Loss')
+plt.plot([i for i in range(1,epoch_num+1)], all_train_cls_cls_loss, 'g', label='Training Classifier Class Loss')
+plt.plot([i for i in range(1,epoch_num+1)], all_val_cls_cls_loss, '--g', label='Validation Classifier Class Loss')
+plt.plot([i for i in range(1,epoch_num+1)], all_train_cls_reg_loss, 'c', label='Training Classifier Reg Loss')
+plt.plot([i for i in range(1,epoch_num+1)], all_val_cls_reg_loss, '--c', label='Validation Classifier Reg Loss')
+plt.plot([i for i in range(1,epoch_num+1)], all_train_total_loss, 'm', label='Training Classifier Reg Loss')
+plt.plot([i for i in range(1,epoch_num+1)], all_val_total_loss, '--m', label='Validation Classifier Reg Loss')
+#plt.plot(epochs, all_train_accuracy, 'bo', label='Training Accuracy')
+#plt.plot(epochs, all_val_accuracy, 'b', label='Validation Accuracy')
+plt.title('Training and Validation Loss')
+plt.xlabel('Epochs')
+plt.ylabel('Loss')
+plt.legend()
+plt.savefig('D:/Pilot_Study/Olivia_Annotations/frcnn_losses.png')
