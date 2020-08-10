@@ -9,9 +9,9 @@ import pandas
 import SimpleITK
 
 def readCSV(videoName):
-    trueLabels = pandas.read_csv('D:/Pilot_Study/Olivia_Annotations/' + videoName + '.csv')
+    trueLabels = pandas.read_csv('D:/Pilot_Study/Olivia_Annotations/crossvalidation/unbalanced_for_testing/' + videoName + '_adapted.csv')
     trueLabels.head()
-    predictedLabels = pandas.read_csv('D:/Pilot_Study/results_images/'+videoName+'_testDataBoundingBoxes.csv')
+    predictedLabels = pandas.read_csv('D:/Pilot_Study/results_images/Olivia/'+videoName+'_testDataBoundingBoxes.csv')
     predictedLabels.head()
     return(trueLabels,predictedLabels)
 
@@ -37,35 +37,39 @@ def convertNametoIndex(name):
     return index
 
 def getAccuracy(trueLabels,predictedLabels):
-    truePositives = 0
-    trueNegatives = 0
-    falsePositives = 0
-    falseNegatives = 0
     tLabels =[]
     pLabels =[]
+    checkedFiles =[]
     for i in range(len(predictedLabels)):
-        imageAllBBoxes = trueLabels.loc[trueLabels['filePath'] == predictedLabels['filePath'][i]]
-        Tlabel = 'none'
-        rowIndexes = imageAllBBoxes.index
-        for j in range(rowIndexes[0],rowIndexes[-1]+1):
-            cn = imageAllBBoxes['class_name'][j]
-            pl = predictedLabels['label'][i]
-            if imageAllBBoxes['class_name'][j] == predictedLabels['label'][i]:
-                Tlabel = imageAllBBoxes['class_name'][j]
-        '''
-        if trueLabels['class_name'][i] == 'ultrasound' and predictedLabels['label'][i] == 'ultrasound':
-            truePositives +=1
-        elif trueLabels['class_name'][i] == 'none' and predictedLabels['label'][i] == 'none':
-            trueNegatives +=1
-        elif trueLabels['class_name'][i] == 'ultrasound' and predictedLabels['label'][i] == 'none':
-            falseNegatives += 1
-        elif trueLabels['class_name'][i] == 'none' and predictedLabels['label'][i] == 'ultrasound':
-            falsePositives += 1
-        '''
-        Tlabel = convertNametoIndex(Tlabel)
-        Plabel = convertNametoIndex(predictedLabels['label'][i])
-        tLabels.append(Tlabel)
-        pLabels.append(Plabel)
+        currentFile = predictedLabels['filePath'][i]
+        if currentFile not in checkedFiles:
+            checkedFiles.append(predictedLabels['filePath'][i])
+            allTrueBBoxes = trueLabels.loc[trueLabels['filePath'] == currentFile]
+            allPredBBoxes = predictedLabels.loc[predictedLabels['filePath'] == currentFile]
+            trueRowIndexes = allTrueBBoxes.index
+            predRowIndexes = allPredBBoxes.index
+            if len(predRowIndexes)> len(trueRowIndexes):
+                for j in predRowIndexes:
+                    Plabel = allPredBBoxes['label'][j]
+                    Tlabel = 'none'
+                    for k in trueRowIndexes:
+                        if allTrueBBoxes['class_name'][k] == Plabel:
+                            Tlabel = allTrueBBoxes['class_name'][k]
+                    Tlabel = convertNametoIndex(Tlabel)
+                    Plabel = convertNametoIndex(Plabel)
+                    tLabels.append(Tlabel)
+                    pLabels.append(Plabel)
+            else:
+                for j in trueRowIndexes:
+                    Tlabel = allTrueBBoxes['class_name'][j]
+                    Plabel = 'none'
+                    for k in predRowIndexes:
+                        if allPredBBoxes['label'][k] == Tlabel:
+                            Plabel = allPredBBoxes['label'][k]
+                    Tlabel = convertNametoIndex(Tlabel)
+                    Plabel = convertNametoIndex(Plabel)
+                    tLabels.append(Tlabel)
+                    pLabels.append(Plabel)
     tLabels = numpy.array(tLabels)
     pLabels = numpy.array(pLabels)
     confmat = sklearn.metrics.confusion_matrix(tLabels,pLabels)
@@ -76,7 +80,6 @@ def getAccuracy(trueLabels,predictedLabels):
     diagonalEntries = numpy.array(diagonalEntries)
     accuracy = numpy.sum(diagonalEntries) / numpy.sum(confmat)
     totalFrameCount = len(pLabels)
-    #print('Accuracy: {}\nTrue positives: {}\nTrue negatives: {}\nFalse positives: {}\nFalse negatives: {}\nTotal frame count: {}'.format(accuracy,truePositives,trueNegatives,falsePositives,falseNegatives,totalFrameCount))
     return (accuracy,totalFrameCount)
 
 def getCenterPoints(trueLabels,predictedLabels):
@@ -153,7 +156,7 @@ def getPathLengthEstimate(predictedLabels,trueLabels,videoPath):
     return (totalPathLength,totalTruePath)
 
 def main():
-    videos = ['MS01_complete']
+    videos = ['MS03-20200213-152826','MS03-20200213-153647','MS03-20200213-154347','MS03-20200213-155250','MS03-20200213-155823']
     #videos = ['MS01-20200210-132740','MS01-20200210-133541','MS01-20200210-134522','MS01-20200210-135109','MS01-20200210-135709']
     #videoLengths = [583.88,315.05,284.73,234.53,219.39]
     videoLengths = [315.05]
