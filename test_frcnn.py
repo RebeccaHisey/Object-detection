@@ -17,30 +17,30 @@ sys.setrecursionlimit(40000)
 
 parser = OptionParser()
 
-parser.add_option("-p", "--path", dest="test_path", help="Path to test data.",default='D:/Pilot_Study/train_videos.txt')
+parser.add_option("-p", "--path", dest="test_path", help="Path to test data.",default='D:/Pilot_Study/Olivia_Annotations/crossvalidation/fold3/test3.txt')
 parser.add_option("-n", "--num_rois", type="int", dest="num_rois",
-				help="Number of ROIs per iteration. Higher means more memory use.", default=32)
+                help="Number of ROIs per iteration. Higher means more memory use.", default=32)
 parser.add_option("--config_filename", dest="config_filename", help=
-				"Location to read the metadata related to the training (generated when training).",
-				default="D:/Object-detection/MS01-20200210-135109_config.pickle")
-parser.add_option("-m","--model_path",dest="model_path",default="D:/Object-detection/MS01-20200210-135109_model_frcnn.hdf5")
+                "Location to read the metadata related to the training (generated when training).",
+                default="D:/Pilot_Study/Olivia_Annotations/MS03_config.pickle")
+parser.add_option("-m","--model_path",dest="model_path",default="D:/Pilot_Study/Olivia_Annotations/MS03_model_frcnn.hdf5")
 parser.add_option("--network", dest="network", help="Base network to use. Supports vgg or resnet50.", default='resnet50')
 
 (options, args) = parser.parse_args()
 '''
 if not options.test_path:   # if filename is not given
-	parser.error('Error: path to test data must be specified. Pass --path to command line')
+    parser.error('Error: path to test data must be specified. Pass --path to command line')
 '''
 
 config_output_filename = options.config_filename
 
 with open(config_output_filename, 'rb') as f_in:
-	C = pickle.load(f_in)
+    C = pickle.load(f_in)
 
 if C.network == 'resnet50':
-	import keras_frcnn.resnet as nn
+    import keras_frcnn.resnet as nn
 elif C.network == 'vgg':
-	import keras_frcnn.vgg as nn
+    import keras_frcnn.vgg as nn
 
 # turn off any data augmentation at test time
 C.use_horizontal_flips = False
@@ -51,58 +51,58 @@ datafolder = options.test_path
 print(datafolder)
 testVideos = []
 with open(datafolder,'r') as testvids:
-	for line in testvids:
-		print(line)
-		testVideos.append(line.strip())
+    for line in testvids:
+        print(line)
+        testVideos.append(line.strip())
 
 def format_img_size(img, C):
-	""" formats the image size based on config """
-	img_min_side = float(C.im_size)
-	(height,width,_) = img.shape
-		
-	if width <= height:
-		ratio = img_min_side/width
-		new_height = int(ratio * height)
-		new_width = int(img_min_side)
-	else:
-		ratio = img_min_side/height
-		new_width = int(ratio * width)
-		new_height = int(img_min_side)
-	img = cv2.resize(img, (new_width, new_height), interpolation=cv2.INTER_CUBIC)
-	return img, ratio	
+    """ formats the image size based on config """
+    img_min_side = float(C.im_size)
+    (height,width,_) = img.shape
+
+    if width <= height:
+        ratio = img_min_side/width
+        new_height = int(ratio * height)
+        new_width = int(img_min_side)
+    else:
+        ratio = img_min_side/height
+        new_width = int(ratio * width)
+        new_height = int(img_min_side)
+    img = cv2.resize(img, (new_width, new_height), interpolation=cv2.INTER_CUBIC)
+    return img, ratio
 
 def format_img_channels(img, C):
-	""" formats the image channels based on config """
-	img = img[:, :, (2, 1, 0)]
-	img = img.astype(np.float32)
-	img[:, :, 0] -= C.img_channel_mean[0]
-	img[:, :, 1] -= C.img_channel_mean[1]
-	img[:, :, 2] -= C.img_channel_mean[2]
-	img /= C.img_scaling_factor
-	img = np.transpose(img, (2, 0, 1))
-	img = np.expand_dims(img, axis=0)
-	return img
+    """ formats the image channels based on config """
+    img = img[:, :, (2, 1, 0)]
+    img = img.astype(np.float32)
+    img[:, :, 0] -= C.img_channel_mean[0]
+    img[:, :, 1] -= C.img_channel_mean[1]
+    img[:, :, 2] -= C.img_channel_mean[2]
+    img /= C.img_scaling_factor
+    img = np.transpose(img, (2, 0, 1))
+    img = np.expand_dims(img, axis=0)
+    return img
 
 def format_img(img, C):
-	""" formats an image for model prediction based on config """
-	img, ratio = format_img_size(img, C)
-	img = format_img_channels(img, C)
-	return img, ratio
+    """ formats an image for model prediction based on config """
+    img, ratio = format_img_size(img, C)
+    img = format_img_channels(img, C)
+    return img, ratio
 
 # Method to transform the coordinates of the bounding box to its original size
 def get_real_coordinates(ratio, x1, y1, x2, y2):
 
-	real_x1 = int(round(x1 // ratio))
-	real_y1 = int(round(y1 // ratio))
-	real_x2 = int(round(x2 // ratio))
-	real_y2 = int(round(y2 // ratio))
+    real_x1 = int(round(x1 // ratio))
+    real_y1 = int(round(y1 // ratio))
+    real_x2 = int(round(x2 // ratio))
+    real_y2 = int(round(y2 // ratio))
 
-	return (real_x1, real_y1, real_x2 ,real_y2)
+    return (real_x1, real_y1, real_x2 ,real_y2)
 
 class_mapping = C.class_mapping
 
 if 'bg' not in class_mapping:
-	class_mapping['bg'] = len(class_mapping)
+    class_mapping['bg'] = len(class_mapping)
 
 class_mapping = {v: k for k, v in class_mapping.items()}
 print(class_mapping)
@@ -110,9 +110,9 @@ class_to_color = {class_mapping[v]: np.random.randint(0, 255, 3) for v in class_
 C.num_rois = int(options.num_rois)
 
 if C.network == 'resnet50':
-	num_features = 1024
+    num_features = 1024
 elif C.network == 'vgg':
-	num_features = 512
+    num_features = 512
 
 input_shape_img = (None, None, 3)
 input_shape_features = (None, None, num_features)
@@ -161,126 +161,132 @@ test_video = test_video.replace('./','')
 videos = [vid for vid in videos if 'MS01' in vid and test_video in vid]
 print(videos)
 for vid in videos:'''
-	#print (vid)
+    #print (vid)
 print(testVideos)
 for vid in testVideos:
-	print(vid)
-	boundingBoxData = pandas.DataFrame(columns=['filePath', 'label', 'confidence', 'xmin', 'ymin', 'xmax', 'ymax'])
-	all_imgs = []
-	classes = {}
-	videoPath = os.path.join(os.path.dirname(datafolder),vid)
-	img_paths = []
-	with open(videoPath,'r') as vp:
-		for line in vp:
-			line_split = line.strip().split(',')
-			(filename, x1, y1, x2, y2, class_name) = line_split
-			img_paths.append(filename)
-	for filepath in img_paths:
-		'''for idx, img_name in enumerate(sorted(os.listdir(img_path))):
-		if not img_name.lower().endswith(('.bmp', '.jpeg', '.jpg', '.png', '.tif', '.tiff')):
-			continue
-		print(img_name)'''
-		st = time.time()
-		#filepath = os.path.join(img_path,img_name)
-		img_name = os.path.basename(filepath)
-		videoID = os.path.basename(vid.replace('_adapted.txt',''))
-		print(img_name)
-		print(videoID)
+    print(vid)
+    boundingBoxData = pandas.DataFrame(columns=['filePath', 'label', 'confidence', 'xmin', 'ymin', 'xmax', 'ymax','a','c','d','g','gc','sc','sy','bg'])
+    all_imgs = []
+    classes = {}
+    videoPath = os.path.join('D:/Pilot_Study/Olivia_Annotations/crossvalidation/unbalanced_for_testing/',vid)
+    img_paths = []
+    with open(videoPath,'r') as vp:
+        for line in vp:
+            line_split = line.strip().split(',')
+            (filename, x1, y1, x2, y2, class_name) = line_split
+            if filename not in img_paths:
+                img_paths.append(filename)
+    for filepath in img_paths:
+        '''for idx, img_name in enumerate(sorted(os.listdir(img_path))):
+        if not img_name.lower().endswith(('.bmp', '.jpeg', '.jpg', '.png', '.tif', '.tiff')):
+            continue
+        print(img_name)'''
+        st = time.time()
+        #filepath = os.path.join(img_path,img_name)
+        img_name = os.path.basename(filepath)
+        videoID = os.path.basename(vid.replace('_adapted.txt',''))
+        print(img_name)
+        print(videoID)
+        allConfs = {}
+        img = cv2.imread(filepath)
 
-		img = cv2.imread(filepath)
+        X, ratio = format_img(img, C)
 
-		X, ratio = format_img(img, C)
+        X = np.transpose(X, (0, 2, 3, 1))
 
-		X = np.transpose(X, (0, 2, 3, 1))
-
-		# get the feature maps and output from the RPN
-		[Y1, Y2, F] = model_rpn.predict(X)
+        # get the feature maps and output from the RPN
+        [Y1, Y2, F] = model_rpn.predict(X)
 
 
-		R = roi_helpers.rpn_to_roi(Y1, Y2, C, overlap_thresh=0.7)
+        R = roi_helpers.rpn_to_roi(Y1, Y2, C, overlap_thresh=0.7)
 
-		# convert from (x1,y1,x2,y2) to (x,y,w,h)
-		R[:, 2] -= R[:, 0]
-		R[:, 3] -= R[:, 1]
+        # convert from (x1,y1,x2,y2) to (x,y,w,h)
+        R[:, 2] -= R[:, 0]
+        R[:, 3] -= R[:, 1]
 
-		# apply the spatial pyramid pooling to the proposed regions
-		bboxes = {}
-		probs = {}
+        # apply the spatial pyramid pooling to the proposed regions
+        bboxes = {}
+        probs = {}
 
-		for jk in range(R.shape[0]//C.num_rois + 1):
-			ROIs = np.expand_dims(R[C.num_rois*jk:C.num_rois*(jk+1), :], axis=0)
-			if ROIs.shape[1] == 0:
-				break
+        for jk in range(R.shape[0]//C.num_rois + 1):
+            ROIs = np.expand_dims(R[C.num_rois*jk:C.num_rois*(jk+1), :], axis=0)
+            if ROIs.shape[1] == 0:
+                break
 
-			if jk == R.shape[0]//C.num_rois:
-				#pad R
-				curr_shape = ROIs.shape
-				target_shape = (curr_shape[0],C.num_rois,curr_shape[2])
-				ROIs_padded = np.zeros(target_shape).astype(ROIs.dtype)
-				ROIs_padded[:, :curr_shape[1], :] = ROIs
-				ROIs_padded[0, curr_shape[1]:, :] = ROIs[0, 0, :]
-				ROIs = ROIs_padded
+            if jk == R.shape[0]//C.num_rois:
+                #pad R
+                curr_shape = ROIs.shape
+                target_shape = (curr_shape[0],C.num_rois,curr_shape[2])
+                ROIs_padded = np.zeros(target_shape).astype(ROIs.dtype)
+                ROIs_padded[:, :curr_shape[1], :] = ROIs
+                ROIs_padded[0, curr_shape[1]:, :] = ROIs[0, 0, :]
+                ROIs = ROIs_padded
 
-			[P_cls, P_regr] = model_classifier_only.predict([F, ROIs])
+            [P_cls, P_regr] = model_classifier_only.predict([F, ROIs])
 
-			for ii in range(P_cls.shape[1]):
+            for ii in range(P_cls.shape[1]):
 
-				if np.max(P_cls[0, ii, :]) < bbox_threshold or np.argmax(P_cls[0, ii, :]) == (P_cls.shape[2] - 1):
-					continue
+                if np.max(P_cls[0, ii, :]) < bbox_threshold or np.argmax(P_cls[0, ii, :]) == (P_cls.shape[2] - 1):
+                    continue
 
-				cls_name = class_mapping[np.argmax(P_cls[0, ii, :])]
+                cls_name = class_mapping[np.argmax(P_cls[0, ii, :])]
 
-				if cls_name not in bboxes:
-					bboxes[cls_name] = []
-					probs[cls_name] = []
+                if cls_name not in bboxes:
+                    bboxes[cls_name] = []
+                    probs[cls_name] = []
+                    allConfs[cls_name] = []
 
-				(x, y, w, h) = ROIs[0, ii, :]
+                (x, y, w, h) = ROIs[0, ii, :]
 
-				cls_num = np.argmax(P_cls[0, ii, :])
-				try:
-					(tx, ty, tw, th) = P_regr[0, ii, 4*cls_num:4*(cls_num+1)]
-					tx /= C.classifier_regr_std[0]
-					ty /= C.classifier_regr_std[1]
-					tw /= C.classifier_regr_std[2]
-					th /= C.classifier_regr_std[3]
-					x, y, w, h = roi_helpers.apply_regr(x, y, w, h, tx, ty, tw, th)
-				except:
-					pass
-				bboxes[cls_name].append([C.rpn_stride*x, C.rpn_stride*y, C.rpn_stride*(x+w), C.rpn_stride*(y+h)])
-				probs[cls_name].append(np.max(P_cls[0, ii, :]))
+                cls_num = np.argmax(P_cls[0, ii, :])
+                try:
+                    (tx, ty, tw, th) = P_regr[0, ii, 4*cls_num:4*(cls_num+1)]
+                    tx /= C.classifier_regr_std[0]
+                    ty /= C.classifier_regr_std[1]
+                    tw /= C.classifier_regr_std[2]
+                    th /= C.classifier_regr_std[3]
+                    x, y, w, h = roi_helpers.apply_regr(x, y, w, h, tx, ty, tw, th)
+                except:
+                    pass
+                bboxes[cls_name].append([C.rpn_stride*x, C.rpn_stride*y, C.rpn_stride*(x+w), C.rpn_stride*(y+h)])
+                probs[cls_name].append(np.max(P_cls[0, ii, :]))
+                allConfs[cls_name].append(P_cls[0, ii, :])
 
-		all_dets = []
+        all_dets = []
 
-		for key in bboxes:
-			bbox = np.array(bboxes[key])
+        for key in bboxes:
+            bbox = np.array(bboxes[key])
 
-			new_boxes, new_probs = roi_helpers.non_max_suppression_fast(bbox, np.array(probs[key]), overlap_thresh=0.5)
-			curr_bestProb = 0
-			for jk in range(new_boxes.shape[0]):
-				if new_probs[jk] > curr_bestProb and new_probs[jk] > 0.92:
-					curr_bestProb = new_probs[jk]
-					(x1, y1, x2, y2) = new_boxes[jk,:]
+            new_boxes, new_probs, new_allConfs = roi_helpers.non_max_suppression_fast(bbox, np.array(probs[key]),allConfs[key], overlap_thresh=0.5)
+            curr_bestProb = 0
+            curr_best_allConf =[]
+            for jk in range(new_boxes.shape[0]):
+                if new_probs[jk] > curr_bestProb and new_probs[jk] > 0.1:
+                    curr_bestProb = new_probs[jk]
+                    (x1, y1, x2, y2) = new_boxes[jk,:]
 
-					(real_x1, real_y1, real_x2, real_y2) = get_real_coordinates(ratio, x1, y1, x2, y2)
-			boundingBoxData = boundingBoxData.append({'filePath':filepath,'label':key,'confidence':curr_bestProb,'xmin':real_x1,'ymin':real_y1,'xmax':real_x2,'ymax':real_y2},ignore_index=True)
-			cv2.rectangle(img,(real_x1, real_y1), (real_x2, real_y2), (int(class_to_color[key][0]), int(class_to_color[key][1]), int(class_to_color[key][2])),2)
+                    (real_x1, real_y1, real_x2, real_y2) = get_real_coordinates(ratio, x1, y1, x2, y2)
+                    curr_best_allConf = new_allConfs[jk,:]
+            boundingBoxData = boundingBoxData.append({'filePath':filepath,'label':key,'confidence':curr_bestProb,'xmin':real_x1,'ymin':real_y1,'xmax':real_x2,'ymax':real_y2,'a':curr_best_allConf[0],'c':curr_best_allConf[1],'d':curr_best_allConf[2],'g':curr_best_allConf[3],'gc':curr_best_allConf[4],'sc':curr_best_allConf[5],'sy':curr_best_allConf[6],'bg':curr_best_allConf[7]},ignore_index=True)
+            cv2.rectangle(img,(real_x1, real_y1), (real_x2, real_y2), (int(class_to_color[key][0]), int(class_to_color[key][1]), int(class_to_color[key][2])),2)
 
-			textLabel = '{}: {}'.format(key,int(100*curr_bestProb))
-			all_dets.append((key,100*curr_bestProb))
+            textLabel = '{}: {}'.format(key,int(100*curr_bestProb))
+            all_dets.append((key,100*curr_bestProb))
 
-			(retval,baseLine) = cv2.getTextSize(textLabel,cv2.FONT_HERSHEY_COMPLEX,1,1)
-			textOrg = (real_x1, real_y1-0)
+            (retval,baseLine) = cv2.getTextSize(textLabel,cv2.FONT_HERSHEY_COMPLEX,1,1)
+            textOrg = (real_x1, real_y1-0)
 
-			cv2.rectangle(img, (textOrg[0] - 5, textOrg[1]+baseLine - 5), (textOrg[0]+retval[0] + 5, textOrg[1]-retval[1] - 5), (0, 0, 0), 2)
-			cv2.rectangle(img, (textOrg[0] - 5,textOrg[1]+baseLine - 5), (textOrg[0]+retval[0] + 5, textOrg[1]-retval[1] - 5), (255, 255, 255), -1)
-			cv2.putText(img, textLabel, textOrg, cv2.FONT_HERSHEY_DUPLEX, 1, (0, 0, 0), 1)
+            cv2.rectangle(img, (textOrg[0] - 5, textOrg[1]+baseLine - 5), (textOrg[0]+retval[0] + 5, textOrg[1]-retval[1] - 5), (0, 0, 0), 2)
+            cv2.rectangle(img, (textOrg[0] - 5,textOrg[1]+baseLine - 5), (textOrg[0]+retval[0] + 5, textOrg[1]-retval[1] - 5), (255, 255, 255), -1)
+            cv2.putText(img, textLabel, textOrg, cv2.FONT_HERSHEY_DUPLEX, 1, (0, 0, 0), 1)
 
-		print('Elapsed time = {}'.format(time.time() - st))
-		print(all_dets)
-		if all_dets == []:
-			boundingBoxData = boundingBoxData.append(
-				{'filePath': filepath, 'label': 'none', 'confidence': 0, 'xmin': 'inf','ymin': 'inf', 'xmax': 'inf', 'ymax': 'inf'}, ignore_index=True)
-		#cv2.imshow('img', img)
-		#cv2.waitKey(0)
-		cv2.imwrite('D:/Pilot_Study/results_images/{}/{}'.format(videoID,img_name),img)
-	boundingBoxData.to_csv('D:/Pilot_Study/results_images/'+videoID+'_testDataBoundingBoxes.csv')
+            print('Elapsed time = {}'.format(time.time() - st))
+            print(all_dets)
+            print(curr_best_allConf)
+
+            #cv2.imshow('img', img)
+            #cv2.waitKey(0)
+            cv2.imwrite('D:/Pilot_Study/results_images/Olivia/{}/{}'.format(videoID,img_name),img)
+        if all_dets == []:
+            boundingBoxData = boundingBoxData.append({'filePath': filepath, 'label': 'none', 'confidence': 0, 'xmin': 'inf', 'ymin': 'inf', 'xmax': 'inf','ymax': 'inf','a':0.0,'c':0.0,'d':0.0,'g':0.0,'gc':0.0,'sc':0.0,'sy':0.0,'bg':1.0}, ignore_index=True)
+    boundingBoxData.to_csv('D:/Pilot_Study/results_images/Olivia/'+videoID+'_testDataBoundingBoxes.csv')
