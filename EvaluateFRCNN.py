@@ -80,8 +80,9 @@ def getMAP(trueLabels,predLabels):
                 falsePositives += 1
             elif rankedSamples['true'][i] == 1 and rankedSamples['pred'][i] == 0:
                 falseNegatives += 1
-            precision.append(truePositives / float(truePositives + falsePositives))
-            recall.append(truePositives / float(totalPosSamples))
+            if not truePositives+falsePositives == 0:
+                precision.append(truePositives / float(truePositives + falsePositives))
+                recall.append(truePositives / float(totalPosSamples))
 
         smoothedPrecision = numpy.array(smoothPrecision(precision))
         recall = numpy.array(recall)
